@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>けいさんカード 音読れんしゅう</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    
+    body {
+      font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      text-align: center;
+      padding: 16px 12px;
+      background: #f0f8ff;
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+    }
+
+    .app-container {
+      width: 100%;
+      max-width: 380px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* 画面切り替え用クラス */
+    .screen {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* スタート画面スタイル */
+    .start-title {
+      font-size: 24px;
+      color: #2c3e50;
+      margin: 20px 0 10px;
+    }
+
+    .start-subtitle {
+      font-size: 15px;
+      color: #666;
+      margin-bottom: 30px;
+    }
+
+    .menu-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      width: 100%;
+      max-width: 280px;
+    }
+
+    .mode-select-btn {
+      padding: 18px 24px;
+      font-size: 22px;
+      font-weight: bold;
+      border: none;
+      border-radius: 20px;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      transition: all 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .mode-select-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+    }
+
+    .btn-add {
+      background: #ff9800;
+    }
+
+    .btn-sub {
+      background: #2196f3;
+    }
+
+    .resume-badge {
+      font-size: 12px;
+      background: rgba(255,255,255,0.3);
+      padding: 2px 8px;
+      border-radius: 10px;
+      margin-left: 5px;
+    }
+
+    /* プレイ画面ヘッダー */
+    .play-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 12px;
+    }
+
+    .back-btn {
+      padding: 6px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      background: #eceff1;
+      color: #546e7a;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .mode-title-badge {
+      font-size: 16px;
+      font-weight: bold;
+      padding: 4px 12px;
+      border-radius: 12px;
+      color: white;
+    }
+
+    .badge-add { background: #ff9800; }
+    .badge-sub { background: #2196f3; }
+
+    .progress {
+      font-size: 15px;
+      color: #666;
+      margin-bottom: 12px;
+      font-weight: bold;
+    }
+
+    /* カードデザイン */
+    .card-container {
+      width: 100%;
+      margin-bottom: 16px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 24px 16px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      min-height: 200px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      border: 3px solid #e1f5fe;
+      transition: background-color 0.3s ease;
+    }
+    
+    .card-label {
+      font-size: 13px;
+      color: #888;
+      position: absolute;
+      top: 12px;
+      left: 16px;
+      background: #f5f5f5;
+      padding: 2px 10px;
+      border-radius: 10px;
+    }
+
+    .read-aloud-hint {
+      font-size: 16px;
+      color: #e91e63;
+      font-weight: bold;
+      margin-top: 15px;
+      margin-bottom: 5px;
+    }
+    
+    .formula {
+      font-size: 48px;
+      font-weight: bold;
+      margin: 8px 0;
+      color: #222;
+      letter-spacing: 2px;
+    }
+    
+    .result-text {
+      font-size: 20px;
+      font-weight: bold;
+      min-height: 30px;
+      margin-top: 4px;
+    }
+    
+    .correct { color: #2e7d32; }
+    .wrong { color: #d32f2f; }
+
+    /* 入力フォーム＆テンキー */
+    .input-area {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .input-display-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    #ans-input {
+      font-size: 32px;
+      width: 110px;
+      height: 52px;
+      text-align: center;
+      border: 3px solid #b3e5fc;
+      border-radius: 12px;
+      background: #fff;
+      outline: none;
+      font-weight: bold;
+      color: #0277bd;
+    }
+    
+    .tenkey {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      width: 100%;
+      max-width: 300px;
+    }
+    
+    .num-btn {
+      font-size: 26px;
+      font-weight: bold;
+      padding: 14px 0;
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 14px;
+      color: #333;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #bdbdbd;
+      transition: all 0.1s ease;
+      touch-action: manipulation;
+    }
+    
+    .num-btn:active {
+      transform: translateY(3px);
+      box-shadow: none;
+      background: #f5f5f5;
+    }
+    
+    .action-btn {
+      background: #29b6f6;
+      color: white;
+      border: none;
+      box-shadow: 0 3px 0 #0288d1;
+    }
+
+    .action-btn:active {
+      background: #0288d1;
+      box-shadow: none;
+    }
+    
+    .clear-btn {
+      background: #ff7043;
+      color: white;
+      border: none;
+      box-shadow: 0 3px 0 #d84315;
+    }
+
+    .clear-btn:active {
+      background: #d84315;
+      box-shadow: none;
+    }
+
+    /* 確認モーダル */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 24px;
+      border-radius: 20px;
+      width: 85%;
+      max-width: 300px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 12px;
+      color: #333;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .modal-btn {
+      flex: 1;
+      padding: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .modal-btn-yes {
+      background: #ff7043;
+      color: white;
+    }
+
+    .modal-btn-no {
+      background: #e0e0e0;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- 1. モード選択（スタート画面） -->
+    <div id="start-screen" class="screen">
+      <h1 class="start-title">けいさんカード</h1>
+      <p class="start-subtitle">れんしゅうするほうを えらんでね！</p>
+
+      <div class="menu-buttons">
+        <button class="mode-select-btn btn-add" onclick="selectMode('add')">
+          <span>＋ たしざん</span>
+          <span id="add-resume-badge" class="resume-badge hidden">つづきから</span>
+        </button>
+        <button class="mode-select-btn btn-sub" onclick="selectMode('sub')">
+          <span>－ ひきざん</span>
+          <span id="sub-resume-badge" class="resume-badge hidden">つづきから</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. プレイ画面 -->
+    <div id="play-screen" class="screen hidden">
+      <div class="play-header">
+        <button class="back-btn" onclick="askReturnHome()">← えらびなおす</button>
+        <div id="mode-badge" class="mode-title-badge badge-add">たしざん</div>
+      </div>
+
+      <div class="progress" id="progress">だい 1 もん / ぜんぶで 0 もん</div>
+
+      <!-- 計算カード本体 -->
+      <div class="card-container">
+        <div class="card" id="card">
+          <div class="card-label" id="card-label">おもて（しき）</div>
+          <div class="read-aloud-hint" id="hint">こえにだしながらやってみよう！</div>
+          <div class="formula" id="formula">1 + 1</div>
+          <div class="result-text" id="result-text"></div>
+        </div>
+      </div>
+
+      <!-- 答え入力エリア -->
+      <div class="input-area">
+        <div class="input-display-wrapper">
+          <input type="number" id="ans-input" readonly placeholder="？">
+        </div>
+        
+        <!-- テンキー -->
+        <div class="tenkey">
+          <button class="num-btn" onclick="pressNum(1)">1</button>
+          <button class="num-btn" onclick="pressNum(2)">2</button>
+          <button class="num-btn" onclick="pressNum(3)">3</button>
+          <button class="num-btn" onclick="pressNum(4)">4</button>
+          <button class="num-btn" onclick="pressNum(5)">5</button>
+          <button class="num-btn" onclick="pressNum(6)">6</button>
+          <button class="num-btn" onclick="pressNum(7)">7</button>
+          <button class="num-btn" onclick="pressNum(8)">8</button>
+          <button class="num-btn" onclick="pressNum(9)">9</button>
+          <button class="num-btn clear-btn" onclick="clearInput()">けす</button>
+          <button class="num-btn" onclick="pressNum(0)">0</button>
+          <button class="num-btn action-btn" onclick="checkAnswer()">こたえ</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 確認用ダイアログ（戻るボタンを押した時） -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-title">とちゅうでおわる？</div>
+      <p style="font-size:14px; color:#666;">（つぎにえらんだ時につづきからできるよ）</p>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-no" onclick="closeModal()">つづける</button>
+        <button class="modal-btn modal-btn-yes" onclick="confirmReturnHome()">おわる</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // データ初期化
+    const addCards = [];
+    for (let a = 1; a <= 9; a++) {
+      for (let b = 1; b <= 10 - a; b++) {
+        addCards.push({ a: a, b: b, op: '+', ans: a + b });
+      }
+    }
+
+    const subCards = [];
+    for (let a = 2; a <= 10; a++) {
+      for (let b = 1; b < a; b++) {
+        subCards.push({ a: a, b: b, op: '-', ans: a - b });
+      }
+    }
+
+    // 各モードの状態を独立して保持（中断・再開に対応）
+    const gameData = {
+      add: { list: [], index: 0, initialized: false },
+      sub: { list: [], index: 0, initialized: false }
+    };
+
+    let currentMode = 'add';
+    let isWaitingNext = false;
+
+    function shuffle(array) {
+      return [...array].sort(() => Math.random() - 0.5);
+    }
+
+    // スタート画面でモード選択
+    function selectMode(mode) {
+      currentMode = mode;
+      const data = gameData[mode];
+
+      // まだシャッフルしていない、または全問終わっていたら新規スタート
+      if (!data.initialized || data.index >= data.list.length) {
+        const sourceData = mode === 'add' ? addCards : subCards;
+        data.list = shuffle(sourceData);
+        data.index = 0;
+        data.initialized = true;
+      }
+
+      // UIの更新
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('play-screen').classList.remove('hidden');
+
+      const badge = document.getElementById('mode-badge');
+      if (mode === 'add') {
+        badge.innerText = 'たしざん';
+        badge.className = 'mode-title-badge badge-add';
+      } else {
+        badge.innerText = 'ひきざん';
+        badge.className = 'mode-title-badge badge-sub';
+      }
+
+      showQuestion();
+    }
+
+    // 問題の表示
+    function showQuestion() {
+      isWaitingNext = false;
+      clearInput();
+      
+      const data = gameData[currentMode];
+      
+      if (data.index >= data.list.length) {
+        document.getElementById('card-label').innerText = "かんりょう！";
+        document.getElementById('hint').style.display = "none";
+        document.getElementById('formula').innerText = "おしまい！";
+        document.getElementById('result-text').className = "result-text correct";
+        document.getElementById('result-text').innerText = "ぜんぶできたね！すごーい！";
+        document.getElementById('progress').innerText = "";
+        return;
+      }
+
+      const item = data.list[data.index];
+      document.getElementById('card-label').innerText = "おもて（しき）";
+      document.getElementById('hint').style.display = "block";
+      document.getElementById('card').style.background = "white";
+      document.getElementById('card').style.borderColor = "#e1f5fe";
+      document.getElementById('formula').innerText = `${item.a} ${item.op} ${item.b}`;
+      document.getElementById('result-text').innerText = "";
+      document.getElementById('progress').innerText = `だい ${data.index + 1} もん / ぜんぶで ${data.list.length} もん`;
+    }
+
+    // テンキー入力処理
+    function pressNum(num) {
+      if (isWaitingNext) return;
+      const input = document.getElementById('ans-input');
+      if (input.value.length < 2) {
+        input.value += num;
+      }
+    }
+
+    function clearInput() {
+      document.getElementById('ans-input').value = "";
+    }
+
+    // 答え合わせ判定
+    function checkAnswer() {
+      if (isWaitingNext) return;
+      
+      const inputVal = document.getElementById('ans-input').value;
+      if (inputVal === "") return;
+
+      const data = gameData[currentMode];
+      const item = data.list[data.index];
+      const userAns = parseInt(inputVal, 10);
+
+      if (userAns === item.ans) {
+        // 正解の場合
+        isWaitingNext = true;
+        document.getElementById('card-label').innerText = "うら（こたえ）";
+        document.getElementById('card').style.background = "#e8f5e9";
+        document.getElementById('card').style.borderColor = "#a5d6a7";
+        
+        document.getElementById('formula').innerText = `${item.a} ${item.op} ${item.b} = ${item.ans}`;
+        document.getElementById('result-text').className = "result-text correct";
+        document.getElementById('result-text').innerText = "〇 せいかい！";
+
+        // 1.8秒後に自動で次の問題へ
+        setTimeout(() => {
+          data.index++;
+          showQuestion();
+        }, 1800);
+
+      } else {
+        // 不正解の場合
+        document.getElementById('result-text').className = "result-text wrong";
+        document.getElementById('result-text').innerText = "✕ ざんねん！もう一かい！";
+        clearInput();
+      }
+    }
+
+    // 戻るボタンが押された時のダイアログ
+    function askReturnHome() {
+      const data = gameData[currentMode];
+      // まだ1問も解いてない、あるいは終了している場合はそのまま戻る
+      if (data.index === 0 || data.index >= data.list.length) {
+        confirmReturnHome();
+      } else {
+        document.getElementById('confirm-modal').classList.remove('hidden');
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('confirm-modal').classList.add('hidden');
+    }
+
+    function confirmReturnHome() {
+      closeModal();
+      document.getElementById('play-screen').classList.add('hidden');
+      document.getElementById('start-screen').classList.remove('hidden');
+
+      // 途中経過がある場合は「つづきから」バッジを表示
+      updateResumeBadges();
+    }
+
+    function updateResumeBadges() {
+      const addData = gameData.add;
+      const addBadge = document.getElementById('add-resume-badge');
+      if (addData.initialized && addData.index > 0 && addData.index < addData.list.length) {
+        addBadge.classList.remove('hidden');
+      } else {
+        addBadge.classList.add('hidden');
+      }
+
+      const subData = gameData.sub;
+      const subBadge = document.getElementById('sub-resume-badge');
+      if (subData.initialized && subData.index > 0 && subData.index < subData.list.length) {
+        subBadge.classList.remove('hidden');
+      } else {
+        subBadge.classList.add('hidden');
+      }
+    }
+
+    // キーボード入力サポート
+    document.addEventListener('keydown', (e) => {
+      if (document.getElementById('play-screen').classList.contains('hidden')) return;
+
+      if (e.key >= '0' && e.key <= '9') {
+        pressNum(parseInt(e.key, 10));
+      } else if (e.key === 'Enter') {
+        checkAnswer();
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        clearInput();
+      }
+    });
+  </script>
+</body>
+</html>
+
