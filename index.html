@@ -24,6 +24,7 @@
       align-items: center;
       justify-content: flex-start;
       min-height: 100vh;
+      overscroll-behavior-y: contain; /* スワイプ更新による意図しない挙動を軽減 */
     }
 
     .app-container {
@@ -50,13 +51,13 @@
     .start-title {
       font-size: 24px;
       color: #2c3e50;
-      margin: 20px 0 10px;
+      margin: 15px 0 5px;
     }
 
     .start-subtitle {
       font-size: 15px;
       color: #666;
-      margin-bottom: 30px;
+      margin-bottom: 20px;
     }
 
     .menu-buttons {
@@ -68,8 +69,8 @@
     }
 
     .mode-select-btn {
-      padding: 18px 24px;
-      font-size: 22px;
+      padding: 16px 20px;
+      font-size: 20px;
       font-weight: bold;
       border: none;
       border-radius: 20px;
@@ -88,20 +89,14 @@
       box-shadow: 0 2px 5px rgba(0,0,0,0.15);
     }
 
-    .btn-add {
-      background: #ff9800;
-    }
-
-    .btn-sub {
-      background: #2196f3;
-    }
+    .btn-add { background: #ff9800; }
+    .btn-sub { background: #2196f3; }
 
     .resume-badge {
       font-size: 12px;
       background: rgba(255,255,255,0.3);
       padding: 2px 8px;
       border-radius: 10px;
-      margin-left: 5px;
     }
 
     /* プレイ画面ヘッダー */
@@ -299,7 +294,7 @@
       padding: 24px;
       border-radius: 20px;
       width: 85%;
-      max-width: 300px;
+      max-width: 320px;
       box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     }
 
@@ -312,13 +307,14 @@
 
     .modal-buttons {
       display: flex;
-      gap: 12px;
-      margin-top: 20px;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 16px;
     }
 
     .modal-btn {
-      flex: 1;
-      padding: 10px;
+      width: 100%;
+      padding: 12px;
       font-size: 16px;
       font-weight: bold;
       border-radius: 12px;
@@ -326,12 +322,17 @@
       cursor: pointer;
     }
 
-    .modal-btn-yes {
+    .modal-btn-resume {
+      background: #4caf50;
+      color: white;
+    }
+
+    .modal-btn-restart {
       background: #ff7043;
       color: white;
     }
 
-    .modal-btn-no {
+    .modal-btn-cancel {
       background: #e0e0e0;
       color: #333;
     }
@@ -347,13 +348,13 @@
       <p class="start-subtitle">れんしゅうするほうを えらんでね！</p>
 
       <div class="menu-buttons">
-        <button class="mode-select-btn btn-add" onclick="selectMode('add')">
+        <button class="mode-select-btn btn-add" onclick="handleModeClick('add')">
           <span>＋ たしざん</span>
-          <span id="add-resume-badge" class="resume-badge hidden">つづきから</span>
+          <span id="add-resume-badge" class="resume-badge hidden">つづきあり</span>
         </button>
-        <button class="mode-select-btn btn-sub" onclick="selectMode('sub')">
+        <button class="mode-select-btn btn-sub" onclick="handleModeClick('sub')">
           <span>－ ひきざん</span>
-          <span id="sub-resume-badge" class="resume-badge hidden">つづきから</span>
+          <span id="sub-resume-badge" class="resume-badge hidden">つづきあり</span>
         </button>
       </div>
     </div>
@@ -403,20 +404,33 @@
 
   </div>
 
-  <!-- 確認用ダイアログ（戻るボタンを押した時） -->
+  <!-- つづきから遊ぶか選択するモーダル -->
+  <div id="start-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-title" id="start-modal-title">とちゅうのデータがあるよ</div>
+      <p style="font-size:14px; color:#666;" id="start-modal-desc">だい 1 もんから つづける？</p>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-resume" onclick="startMode(selectedModeChoice, true)">つづきから はじめる</button>
+        <button class="modal-btn modal-btn-restart" onclick="startMode(selectedModeChoice, false)">さいしょから やりなおす</button>
+        <button class="modal-btn modal-btn-cancel" onclick="closeStartModal()">やめる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 途中退出確認モーダル（プレイ中） -->
   <div id="confirm-modal" class="modal-overlay hidden">
     <div class="modal-content">
       <div class="modal-title">とちゅうでおわる？</div>
       <p style="font-size:14px; color:#666;">（つぎにえらんだ時につづきからできるよ）</p>
       <div class="modal-buttons">
-        <button class="modal-btn modal-btn-no" onclick="closeModal()">つづける</button>
-        <button class="modal-btn modal-btn-yes" onclick="confirmReturnHome()">おわる</button>
+        <button class="modal-btn modal-btn-resume" onclick="closeConfirmModal()">つづける</button>
+        <button class="modal-btn modal-btn-restart" onclick="confirmReturnHome()">おわる</button>
       </div>
     </div>
   </div>
 
   <script>
-    // データ初期化
+    // 基本問題リスト生成
     const addCards = [];
     for (let a = 1; a <= 9; a++) {
       for (let b = 1; b <= 10 - a; b++) {
@@ -431,33 +445,84 @@
       }
     }
 
-    // 各モードの状態を独立して保持（中断・再開に対応）
+    // 各モードの状態
     const gameData = {
       add: { list: [], index: 0, initialized: false },
       sub: { list: [], index: 0, initialized: false }
     };
 
     let currentMode = 'add';
+    let selectedModeChoice = 'add';
     let isWaitingNext = false;
 
     function shuffle(array) {
       return [...array].sort(() => Math.random() - 0.5);
     }
 
-    // スタート画面でモード選択
-    function selectMode(mode) {
+    // 起動時の初期処理：保存されたデータがあれば読み込む
+    function loadSavedData() {
+      try {
+        const saved = localStorage.getItem('keisan_card_save');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.add && parsed.add.list && parsed.add.list.length > 0) {
+            gameData.add = parsed.add;
+          }
+          if (parsed.sub && parsed.sub.list && parsed.sub.list.length > 0) {
+            gameData.sub = parsed.sub;
+          }
+        }
+      } catch (e) {
+        console.error("Save data load error", e);
+      }
+      updateResumeBadges();
+    }
+
+    // 進行状況をブラウザに自動保存
+    function saveData() {
+      try {
+        localStorage.setItem('keisan_card_save', JSON.stringify(gameData));
+      } catch (e) {
+        console.error("Save error", e);
+      }
+      updateResumeBadges();
+    }
+
+    // モード選択ボタンが押されたとき
+    function handleModeClick(mode) {
+      selectedModeChoice = mode;
+      const data = gameData[mode];
+
+      // 進行中のデータ（途中）があるか確認
+      if (data.initialized && data.index > 0 && data.index < data.list.length) {
+        document.getElementById('start-modal-title').innerText = `${mode === 'add' ? 'たしざん' : 'ひきざん'}の つづきがあるよ`;
+        document.getElementById('start-modal-desc').innerText = `だい ${data.index + 1} もんから はじめる？`;
+        document.getElementById('start-modal').classList.remove('hidden');
+      } else {
+        // 続きがなければ最初からスタート
+        startMode(mode, false);
+      }
+    }
+
+    function closeStartModal() {
+      document.getElementById('start-modal').classList.add('hidden');
+    }
+
+    // モード開始処理
+    function startMode(mode, isResume) {
+      closeStartModal();
       currentMode = mode;
       const data = gameData[mode];
 
-      // まだシャッフルしていない、または全問終わっていたら新規スタート
-      if (!data.initialized || data.index >= data.list.length) {
+      if (!isResume || !data.initialized) {
         const sourceData = mode === 'add' ? addCards : subCards;
         data.list = shuffle(sourceData);
         data.index = 0;
         data.initialized = true;
+        saveData();
       }
 
-      // UIの更新
+      // 画面表示切替
       document.getElementById('start-screen').classList.add('hidden');
       document.getElementById('play-screen').classList.remove('hidden');
 
@@ -487,6 +552,11 @@
         document.getElementById('result-text').className = "result-text correct";
         document.getElementById('result-text').innerText = "ぜんぶできたね！すごーい！";
         document.getElementById('progress').innerText = "";
+        
+        // 全問終了したら状態をリセット
+        data.initialized = false;
+        data.index = 0;
+        saveData();
         return;
       }
 
@@ -535,9 +605,10 @@
         document.getElementById('result-text').className = "result-text correct";
         document.getElementById('result-text').innerText = "〇 せいかい！";
 
-        // 1.8秒後に自動で次の問題へ
+        // 1.8秒後に自動で次の問題へ進み、進行状況を保存
         setTimeout(() => {
           data.index++;
+          saveData();
           showQuestion();
         }, 1800);
 
@@ -549,10 +620,9 @@
       }
     }
 
-    // 戻るボタンが押された時のダイアログ
+    // 戻るボタンの確認ダイアログ
     function askReturnHome() {
       const data = gameData[currentMode];
-      // まだ1問も解いてない、あるいは終了している場合はそのまま戻る
       if (data.index === 0 || data.index >= data.list.length) {
         confirmReturnHome();
       } else {
@@ -560,16 +630,14 @@
       }
     }
 
-    function closeModal() {
+    function closeConfirmModal() {
       document.getElementById('confirm-modal').classList.add('hidden');
     }
 
     function confirmReturnHome() {
-      closeModal();
+      closeConfirmModal();
       document.getElementById('play-screen').classList.add('hidden');
       document.getElementById('start-screen').classList.remove('hidden');
-
-      // 途中経過がある場合は「つづきから」バッジを表示
       updateResumeBadges();
     }
 
@@ -603,6 +671,9 @@
         clearInput();
       }
     });
+
+    // アプリ起動時にデータを読み込み
+    loadSavedData();
   </script>
 </body>
 </html>
