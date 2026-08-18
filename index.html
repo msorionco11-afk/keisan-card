@@ -69,7 +69,7 @@
 
     .mode-select-btn {
       padding: 18px 20px;
-      font-size: 21px;
+      font-size: 20px;
       font-weight: bold;
       border: none;
       border-radius: 20px;
@@ -370,7 +370,7 @@
     .stamp-text-top { font-size: 11px; font-weight: bold; }
     .stamp-text-main { font-size: 16px; font-weight: bold; margin: 2px 0; }
 
-    /* 自作紙ふぶきコンテナ */
+    /* 紙ふぶき */
     #confetti-box {
       position: fixed;
       top: 0;
@@ -459,11 +459,11 @@
       <p class="start-subtitle">れんしゅうするほうを えらんでね！</p>
 
       <div class="menu-buttons">
-        <button class="mode-select-btn btn-add" onclick="handleModeClick('add')">
+        <button class="mode-select-btn btn-add" id="btn-mode-add">
           <span>＋ たしざん (45もん)</span>
           <span id="add-resume-badge" class="resume-badge hidden">つづきあり</span>
         </button>
-        <button class="mode-select-btn btn-sub" onclick="handleModeClick('sub')">
+        <button class="mode-select-btn btn-sub" id="btn-mode-sub">
           <span>－ ひきざん (54もん)</span>
           <span id="sub-resume-badge" class="resume-badge hidden">つづきあり</span>
         </button>
@@ -473,7 +473,7 @@
     <!-- 2. プレイ画面 -->
     <div id="play-screen" class="screen hidden">
       <div class="play-header">
-        <button class="back-btn" onclick="askReturnHome()">← えらびなおす</button>
+        <button class="back-btn" id="btn-back">← えらびなおす</button>
         <div id="mode-badge" class="mode-title-badge badge-add">たしざん</div>
       </div>
 
@@ -512,23 +512,23 @@
       <div class="input-area">
         <div class="input-row">
           <input type="number" id="ans-input" readonly placeholder="？">
-          <button class="hint-trigger-btn" onclick="toggleHint()">💡 ヒント</button>
+          <button class="hint-trigger-btn" id="btn-hint">💡 ヒント</button>
         </div>
         
         <!-- テンキー -->
         <div class="tenkey">
-          <button class="num-btn" onclick="pressNum(1)">1</button>
-          <button class="num-btn" onclick="pressNum(2)">2</button>
-          <button class="num-btn" onclick="pressNum(3)">3</button>
-          <button class="num-btn" onclick="pressNum(4)">4</button>
-          <button class="num-btn" onclick="pressNum(5)">5</button>
-          <button class="num-btn" onclick="pressNum(6)">6</button>
-          <button class="num-btn" onclick="pressNum(7)">7</button>
-          <button class="num-btn" onclick="pressNum(8)">8</button>
-          <button class="num-btn" onclick="pressNum(9)">9</button>
-          <button class="num-btn clear-btn" onclick="clearInput()">けす</button>
-          <button class="num-btn" onclick="pressNum(0)">0</button>
-          <button class="num-btn action-btn" onclick="checkAnswer()">こたえ</button>
+          <button class="num-btn" data-num="1">1</button>
+          <button class="num-btn" data-num="2">2</button>
+          <button class="num-btn" data-num="3">3</button>
+          <button class="num-btn" data-num="4">4</button>
+          <button class="num-btn" data-num="5">5</button>
+          <button class="num-btn" data-num="6">6</button>
+          <button class="num-btn" data-num="7">7</button>
+          <button class="num-btn" data-num="8">8</button>
+          <button class="num-btn" data-num="9">9</button>
+          <button class="num-btn clear-btn" id="btn-clear">けす</button>
+          <button class="num-btn" data-num="0">0</button>
+          <button class="num-btn action-btn" id="btn-submit">こたえ</button>
         </div>
       </div>
     </div>
@@ -544,9 +544,9 @@
       <div class="modal-title" id="start-modal-title">とちゅうのデータがあるよ</div>
       <p style="font-size:14px; color:#666;" id="start-modal-desc">だい 1 もんから つづける？</p>
       <div class="modal-buttons">
-        <button class="modal-btn modal-btn-resume" onclick="startMode(selectedModeChoice, true)">つづきから はじめる</button>
-        <button class="modal-btn modal-btn-restart" onclick="startMode(selectedModeChoice, false)">さいしょから やりなおす</button>
-        <button class="modal-btn modal-btn-cancel" onclick="closeStartModal()">やめる</button>
+        <button class="modal-btn modal-btn-resume" id="btn-modal-resume">つづきから はじめる</button>
+        <button class="modal-btn modal-btn-restart" id="btn-modal-restart">さいしょから やりなおす</button>
+        <button class="modal-btn modal-btn-cancel" id="btn-modal-cancel">やめる</button>
       </div>
     </div>
   </div>
@@ -557,75 +557,14 @@
       <div class="modal-title">とちゅうでおわる？</div>
       <p style="font-size:14px; color:#666;">（つぎにえらんだ時につづきからできるよ）</p>
       <div class="modal-buttons">
-        <button class="modal-btn modal-btn-resume" onclick="closeConfirmModal()">つづける</button>
-        <button class="modal-btn modal-btn-restart" onclick="confirmReturnHome()">おわる</button>
+        <button class="modal-btn modal-btn-resume" id="btn-confirm-keep">つづける</button>
+        <button class="modal-btn modal-btn-restart" id="btn-confirm-exit">おわる</button>
       </div>
     </div>
   </div>
 
   <script>
-    // 安全な音声再生処理
-    let audioCtx = null;
-    function playAudioTone(type) {
-      try {
-        if (!audioCtx) {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (AudioContextClass) audioCtx = new AudioContextClass();
-        }
-        if (audioCtx && audioCtx.state === 'suspended') {
-          audioCtx.resume();
-        }
-        if (!audioCtx) return;
-
-        const now = audioCtx.currentTime;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-
-        if (type === 'correct') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(523.25, now);
-          osc.frequency.setValueAtTime(659.25, now + 0.1);
-          gain.gain.setValueAtTime(0.2, now);
-          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-          osc.start(now);
-          osc.stop(now + 0.35);
-        } else if (type === 'wrong') {
-          osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(160, now);
-          gain.gain.setValueAtTime(0.15, now);
-          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
-          osc.start(now);
-          osc.stop(now + 0.25);
-        }
-      } catch (e) {
-        // エラー無視
-      }
-    }
-
-    // 自作紙ふぶきエフェクト
-    function launchConfetti() {
-      const box = document.getElementById('confetti-box');
-      box.innerHTML = '';
-      const colors = ['#f44336', '#e91e63', '#9c27b0', '#2196f3', '#4caf50', '#ffeb3b', '#ff9800'];
-      
-      for (let i = 0; i < 40; i++) {
-        const p = document.createElement('div');
-        p.className = 'confetti-piece';
-        p.style.left = Math.random() * 100 + '%';
-        p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        p.style.animationDelay = Math.random() * 2 + 's';
-        p.style.animationDuration = (Math.random() * 1.5 + 1.5) + 's';
-        box.appendChild(p);
-      }
-
-      setTimeout(() => {
-        box.innerHTML = '';
-      }, 5000);
-    }
-
-    // 基本問題リスト生成
+    // 基本問題データ
     const addCards = [];
     for (let a = 1; a <= 9; a++) {
       for (let b = 1; b <= 10 - a; b++) {
@@ -662,14 +601,14 @@
           if (parsed.add && parsed.add.list && parsed.add.list.length > 0) gameData.add = parsed.add;
           if (parsed.sub && parsed.sub.list && parsed.sub.list.length > 0) gameData.sub = parsed.sub;
         }
-      } catch (e) { console.error(e); }
+      } catch (e) {}
       updateResumeBadges();
     }
 
     function saveData() {
       try {
         localStorage.setItem('keisan_card_save', JSON.stringify(gameData));
-      } catch (e) { console.error(e); }
+      } catch (e) {}
       updateResumeBadges();
     }
 
@@ -686,12 +625,8 @@
       }
     }
 
-    function closeStartModal() {
-      document.getElementById('start-modal').classList.add('hidden');
-    }
-
     function startMode(mode, isResume) {
-      closeStartModal();
+      document.getElementById('start-modal').classList.add('hidden');
       currentMode = mode;
       const data = gameData[mode];
 
@@ -737,7 +672,6 @@
         document.getElementById('progress').innerText = "ぜんぶクリア！";
 
         document.getElementById('stamp').classList.add('show');
-        playAudioTone('correct');
         launchConfetti();
         
         data.initialized = false;
@@ -750,4 +684,81 @@
       document.getElementById('card-label').innerText = "おもて（しき）";
       document.getElementById('hint').style.display = "block";
       document.getElementById('card').style.background = "white";
-      document.getElementById('card'
+      document.getElementById('card').style.borderColor = "#e1f5fe";
+      document.getElementById('formula').innerText = `${item.a} ${item.op} ${item.b}`;
+      document.getElementById('result-text').innerText = "";
+      
+      const total = data.list.length;
+      const current = data.index + 1;
+      document.getElementById('progress').innerText = `だい ${current} もん / ぜんぶで ${total} もん`;
+      document.getElementById('progress-bar').style.width = `${((current - 1) / total) * 100}%`;
+
+      setupHint(item);
+    }
+
+    function setupHint(item) {
+      const hintText = document.getElementById('hint-text');
+      const dotGroup = document.getElementById('dot-group');
+      dotGroup.innerHTML = '';
+
+      if (item.op === '+') {
+        hintText.innerText = `${item.a} に ${item.b} を あわせるよ`;
+        for (let i = 0; i < item.a; i++) {
+          const d = document.createElement('div');
+          d.className = 'dot';
+          dotGroup.appendChild(d);
+        }
+        for (let i = 0; i < item.b; i++) {
+          const d = document.createElement('div');
+          d.className = 'dot group2';
+          dotGroup.appendChild(d);
+        }
+      } else {
+        hintText.innerText = `${item.a} から ${item.b} を のこすよ`;
+        for (let i = 0; i < item.a; i++) {
+          const d = document.createElement('div');
+          d.className = 'dot';
+          if (i >= item.a - item.b) {
+            d.style.opacity = '0.2';
+          }
+          dotGroup.appendChild(d);
+        }
+      }
+    }
+
+    function toggleHint() {
+      isHintShowing = !isHintShowing;
+      const box = document.getElementById('hint-box');
+      if (isHintShowing) {
+        box.classList.remove('hidden');
+      } else {
+        box.classList.add('hidden');
+      }
+    }
+
+    function pressNum(num) {
+      if (isWaitingNext) return;
+      const input = document.getElementById('ans-input');
+      if (input.value.length < 2) {
+        input.value += num;
+      }
+    }
+
+    function clearInput() {
+      document.getElementById('ans-input').value = "";
+    }
+
+    function checkAnswer() {
+      if (isWaitingNext) return;
+      
+      const inputVal = document.getElementById('ans-input').value;
+      if (inputVal === "") return;
+
+      const data = gameData[currentMode];
+      const item = data.list[data.index];
+      const userAns = parseInt(inputVal, 10);
+
+      if (userAns === item.ans) {
+        isWaitingNext = true;
+
+        document.getElementById('card-label').innerText = "うら（こたえ）";
