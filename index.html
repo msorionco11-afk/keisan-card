@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>けいさんカード 音読れんしゅう</title>
+  <!-- 紙ふぶき用ライブラリ -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -16,7 +18,7 @@
     body {
       font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
       text-align: center;
-      padding: 16px 12px;
+      padding: 12px 10px;
       background: #f0f8ff;
       color: #333;
       display: flex;
@@ -24,7 +26,7 @@
       align-items: center;
       justify-content: flex-start;
       min-height: 100vh;
-      overscroll-behavior-y: contain; /* スワイプ更新による意図しない挙動を軽減 */
+      overscroll-behavior-y: contain;
     }
 
     .app-container {
@@ -35,7 +37,6 @@
       align-items: center;
     }
 
-    /* 画面切り替え用クラス */
     .screen {
       width: 100%;
       display: flex;
@@ -47,28 +48,897 @@
       display: none !important;
     }
 
-    /* スタート画面スタイル */
+    /* スタート画面 */
     .start-title {
       font-size: 24px;
       color: #2c3e50;
-      margin: 15px 0 5px;
+      margin: 10px 0 5px;
     }
 
     .start-subtitle {
-      font-size: 15px;
+      font-size: 14px;
       color: #666;
+      margin-bottom: 15px;
+    }
+
+    .section-label {
+      font-size: 14px;
+      font-weight: bold;
+      color: #444;
+      margin-bottom: 8px;
+    }
+
+    .count-selector {
+      display: flex;
+      gap: 8px;
       margin-bottom: 20px;
+      width: 100%;
+      max-width: 290px;
+    }
+
+    .count-btn {
+      flex: 1;
+      padding: 8px 0;
+      font-size: 14px;
+      font-weight: bold;
+      border: 2px solid #b3e5fc;
+      border-radius: 12px;
+      background: white;
+      color: #0277bd;
+      cursor: pointer;
+    }
+
+    .count-btn.active {
+      background: #0288d1;
+      color: white;
+      border-color: #0288d1;
     }
 
     .menu-buttons {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
       width: 100%;
-      max-width: 280px;
+      max-width: 290px;
     }
 
     .mode-select-btn {
+      padding: 16px 20px;
+      font-size: 20px;
+      font-weight: bold;
+      border: none;
+      border-radius: 20px;
+      color: white;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+      transition: all 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .mode-select-btn:active {
+      transform: translateY(2px);
+    }
+
+    .btn-add { background: #ff9800; }
+    .btn-sub { background: #2196f3; }
+
+    .resume-badge {
+      font-size: 11px;
+      background: rgba(255,255,255,0.3);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+
+    /* プレイ画面ヘッダー */
+    .play-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+
+    .back-btn {
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: bold;
+      background: #eceff1;
+      color: #546e7a;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+
+    .mode-title-badge {
+      font-size: 15px;
+      font-weight: bold;
+      padding: 4px 12px;
+      border-radius: 12px;
+      color: white;
+    }
+
+    .badge-add { background: #ff9800; }
+    .badge-sub { background: #2196f3; }
+
+    .progress-bar-container {
+      width: 100%;
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-bottom: 6px;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: #4caf50;
+      transition: width 0.3s ease;
+    }
+
+    .progress-text {
+      font-size: 14px;
+      color: #666;
+      margin-bottom: 8px;
+      font-weight: bold;
+    }
+
+    /* カードデザイン */
+    .card-container {
+      width: 100%;
+      margin-bottom: 12px;
+    }
+    
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 20px 14px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.08);
+      min-height: 210px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      border: 3px solid #e1f5fe;
+      transition: all 0.3s ease;
+    }
+    
+    .card-label {
+      font-size: 12px;
+      color: #888;
+      position: absolute;
+      top: 10px;
+      left: 14px;
+      background: #f5f5f5;
+      padding: 2px 8px;
+      border-radius: 8px;
+    }
+
+    .read-aloud-hint {
+      font-size: 15px;
+      color: #e91e63;
+      font-weight: bold;
+      margin-top: 12px;
+      margin-bottom: 4px;
+    }
+    
+    .formula {
+      font-size: 46px;
+      font-weight: bold;
+      margin: 4px 0;
+      color: #222;
+      letter-spacing: 2px;
+    }
+    
+    .result-text {
+      font-size: 18px;
+      font-weight: bold;
+      min-height: 26px;
+      margin-top: 2px;
+    }
+
+    /* ヒント表示エリア（ドット visual） */
+    .hint-box {
+      margin-top: 6px;
+      padding: 6px 12px;
+      background: #fff8e1;
+      border: 1px dashed #ffe082;
+      border-radius: 10px;
+      font-size: 13px;
+      color: #f57f17;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      width: 90%;
+    }
+
+    .dot-group {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ff7043;
+    }
+
+    .dot.group2 {
+      background: #42a5f5;
+    }
+    
+    .correct { color: #2e7d32; }
+    .wrong { color: #d32f2f; }
+
+    /* 入力フォーム＆テンキー */
+    .input-area {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    
+    #ans-input {
+      font-size: 30px;
+      width: 100px;
+      height: 48px;
+      text-align: center;
+      border: 3px solid #b3e5fc;
+      border-radius: 12px;
+      background: #fff;
+      outline: none;
+      font-weight: bold;
+      color: #0277bd;
+    }
+
+    .hint-trigger-btn {
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: bold;
+      background: #fff3e0;
+      color: #e65100;
+      border: 2px solid #ffe082;
+      border-radius: 12px;
+      cursor: pointer;
+    }
+    
+    .tenkey {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      width: 100%;
+      max-width: 290px;
+    }
+    
+    .num-btn {
+      font-size: 24px;
+      font-weight: bold;
+      padding: 12px 0;
+      background: white;
+      border: 2px solid #e0e0e0;
+      border-radius: 12px;
+      color: #333;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #bdbdbd;
+      transition: all 0.1s ease;
+      touch-action: manipulation;
+    }
+    
+    .num-btn:active {
+      transform: translateY(3px);
+      box-shadow: none;
+      background: #f5f5f5;
+    }
+    
+    .action-btn {
+      background: #29b6f6;
+      color: white;
+      border: none;
+      box-shadow: 0 3px 0 #0288d1;
+    }
+
+    .action-btn:active {
+      background: #0288d1;
+      box-shadow: none;
+    }
+    
+    .clear-btn {
+      background: #ff7043;
+      color: white;
+      border: none;
+      box-shadow: 0 3px 0 #d84315;
+    }
+
+    .clear-btn:active {
+      background: #d84315;
+      box-shadow: none;
+    }
+
+    /* スタンプ・演出 */
+    .stamp-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%) rotate(-10deg) scale(0);
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .stamp-container.show {
+      transform: translate(-50%, -50%) rotate(-10deg) scale(1);
+    }
+
+    .stamp-circle {
+      width: 110px;
+      height: 110px;
+      border: 4px dashed #e91e63;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #e91e63;
+      background: rgba(255,255,255,0.9);
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    .stamp-text-top { font-size: 11px; font-weight: bold; }
+    .stamp-text-main { font-size: 16px; font-weight: bold; margin: 2px 0; }
+
+    /* モーダル */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .modal-content {
+      background: white;
+      padding: 22px;
+      border-radius: 20px;
+      width: 85%;
+      max-width: 310px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      color: #333;
+    }
+
+    .modal-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .modal-btn {
+      width: 100%;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: bold;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .modal-btn-resume { background: #4caf50; color: white; }
+    .modal-btn-restart { background: #ff7043; color: white; }
+    .modal-btn-cancel { background: #e0e0e0; color: #333; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+
+    <!-- 1. モード選択（スタート画面） -->
+    <div id="start-screen" class="screen">
+      <h1 class="start-title">けいさんカード</h1>
+      <p class="start-subtitle">楽しくおんどく＆けいさん！</p>
+
+      <div class="section-label">なんもん れんしゅうする？</div>
+      <div class="count-selector">
+        <button class="count-btn" onclick="selectQuestionLimit(10)">10もん</button>
+        <button class="count-btn active" onclick="selectQuestionLimit(20)">20もん</button>
+        <button class="count-btn" onclick="selectQuestionLimit(0)">ぜんぶ</button>
+      </div>
+
+      <div class="menu-buttons">
+        <button class="mode-select-btn btn-add" onclick="handleModeClick('add')">
+          <span>＋ たしざん</span>
+          <span id="add-resume-badge" class="resume-badge hidden">つづきあり</span>
+        </button>
+        <button class="mode-select-btn btn-sub" onclick="handleModeClick('sub')">
+          <span>－ ひきざん</span>
+          <span id="sub-resume-badge" class="resume-badge hidden">つづきあり</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 2. プレイ画面 -->
+    <div id="play-screen" class="screen hidden">
+      <div class="play-header">
+        <button class="back-btn" onclick="askReturnHome()">← えらびなおす</button>
+        <div id="mode-badge" class="mode-title-badge badge-add">たしざん</div>
+      </div>
+
+      <div class="progress-bar-container">
+        <div class="progress-bar-fill" id="progress-bar"></div>
+      </div>
+      <div class="progress-text" id="progress">だい 1 もん / ぜんぶで 0 もん</div>
+
+      <!-- 計算カード本体 -->
+      <div class="card-container">
+        <div class="card" id="card">
+          <div class="card-label" id="card-label">おもて（しき）</div>
+          <div class="read-aloud-hint" id="hint">こえにだしながらやってみよう！</div>
+          <div class="formula" id="formula">1 + 1</div>
+          
+          <!-- さくらんぼ・ドットヒント -->
+          <div id="hint-box" class="hint-box hidden">
+            <div id="hint-text"></div>
+            <div class="dot-group" id="dot-group"></div>
+          </div>
+
+          <div class="result-text" id="result-text"></div>
+
+          <!-- はなまるスタンプ -->
+          <div class="stamp-container" id="stamp">
+            <div class="stamp-circle">
+              <span class="stamp-text-top">たいへんよく</span>
+              <span class="stamp-text-main">できました</span>
+              <span class="stamp-text-top">💮</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 答え入力エリア -->
+      <div class="input-area">
+        <div class="input-row">
+          <input type="number" id="ans-input" readonly placeholder="？">
+          <button class="hint-trigger-btn" onclick="toggleHint()">💡 ヒント</button>
+        </div>
+        
+        <!-- テンキー -->
+        <div class="tenkey">
+          <button class="num-btn" onclick="pressNum(1)">1</button>
+          <button class="num-btn" onclick="pressNum(2)">2</button>
+          <button class="num-btn" onclick="pressNum(3)">3</button>
+          <button class="num-btn" onclick="pressNum(4)">4</button>
+          <button class="num-btn" onclick="pressNum(5)">5</button>
+          <button class="num-btn" onclick="pressNum(6)">6</button>
+          <button class="num-btn" onclick="pressNum(7)">7</button>
+          <button class="num-btn" onclick="pressNum(8)">8</button>
+          <button class="num-btn" onclick="pressNum(9)">9</button>
+          <button class="num-btn clear-btn" onclick="clearInput()">けす</button>
+          <button class="num-btn" onclick="pressNum(0)">0</button>
+          <button class="num-btn action-btn" onclick="checkAnswer()">こたえ</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- つづきから遊ぶか選択するモーダル -->
+  <div id="start-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-title" id="start-modal-title">とちゅうのデータがあるよ</div>
+      <p style="font-size:14px; color:#666;" id="start-modal-desc">だい 1 もんから つづける？</p>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-resume" onclick="startMode(selectedModeChoice, true)">つづきから はじめる</button>
+        <button class="modal-btn modal-btn-restart" onclick="startMode(selectedModeChoice, false)">さいしょから やりなおす</button>
+        <button class="modal-btn modal-btn-cancel" onclick="closeStartModal()">やめる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 途中退出確認モーダル -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="modal-content">
+      <div class="modal-title">とちゅうでおわる？</div>
+      <p style="font-size:14px; color:#666;">（つぎにえらんだ時につづきからできるよ）</p>
+      <div class="modal-buttons">
+        <button class="modal-btn modal-btn-resume" onclick="closeConfirmModal()">つづける</button>
+        <button class="modal-btn modal-btn-restart" onclick="confirmReturnHome()">おわる</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // サウンド効果（Web Audio APIで生成）
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        audioCtx = new AudioContext();
+      }
+    }
+
+    function playSound(type) {
+      if (!audioCtx) return;
+      
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+
+      const now = audioCtx.currentTime;
+
+      if (type === 'correct') {
+        // ピンポン♪
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(523.25, now); // C5
+        osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
+        gain.gain.setValueAtTime(0.3, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+        osc.start(now);
+        osc.stop(now + 0.4);
+      } else if (type === 'wrong') {
+        // ブブー
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(150, now);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+        osc.start(now);
+        osc.stop(now + 0.3);
+      } else if (type === 'fanfare') {
+        // ファンファーレ
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C
+        notes.forEach((freq, idx) => {
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.frequency.value = freq;
+          g.gain.setValueAtTime(0.2, now + idx * 0.1);
+          g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.3);
+          o.start(now + idx * 0.1);
+          o.stop(now + idx * 0.1 + 0.3);
+        });
+      }
+    }
+
+    // 基本問題リスト生成
+    const addCards = [];
+    for (let a = 1; a <= 9; a++) {
+      for (let b = 1; b <= 10 - a; b++) {
+        addCards.push({ a: a, b: b, op: '+', ans: a + b });
+      }
+    }
+
+    const subCards = [];
+    for (let a = 2; a <= 10; a++) {
+      for (let b = 1; b < a; b++) {
+        subCards.push({ a: a, b: b, op: '-', ans: a - b });
+      }
+    }
+
+    let selectedLimit = 20; // デフォルト20問コース
+
+    const gameData = {
+      add: { list: [], index: 0, initialized: false },
+      sub: { list: [], index: 0, initialized: false }
+    };
+
+    let currentMode = 'add';
+    let selectedModeChoice = 'add';
+    let isWaitingNext = false;
+    let isHintShowing = false;
+
+    function shuffle(array) {
+      return [...array].sort(() => Math.random() - 0.5);
+    }
+
+    function selectQuestionLimit(limit) {
+      selectedLimit = limit;
+      const btns = document.querySelectorAll('.count-btn');
+      btns.forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+    }
+
+    function loadSavedData() {
+      try {
+        const saved = localStorage.getItem('keisan_card_save');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.add && parsed.add.list && parsed.add.list.length > 0) gameData.add = parsed.add;
+          if (parsed.sub && parsed.sub.list && parsed.sub.list.length > 0) gameData.sub = parsed.sub;
+        }
+      } catch (e) { console.error(e); }
+      updateResumeBadges();
+    }
+
+    function saveData() {
+      try {
+        localStorage.setItem('keisan_card_save', JSON.stringify(gameData));
+      } catch (e) { console.error(e); }
+      updateResumeBadges();
+    }
+
+    function handleModeClick(mode) {
+      initAudio();
+      selectedModeChoice = mode;
+      const data = gameData[mode];
+
+      if (data.initialized && data.index > 0 && data.index < data.list.length) {
+        document.getElementById('start-modal-title').innerText = `${mode === 'add' ? 'たしざん' : 'ひきざん'}の つづきがあるよ`;
+        document.getElementById('start-modal-desc').innerText = `だい ${data.index + 1} もんから はじめる？`;
+        document.getElementById('start-modal').classList.remove('hidden');
+      } else {
+        startMode(mode, false);
+      }
+    }
+
+    function closeStartModal() {
+      document.getElementById('start-modal').classList.add('hidden');
+    }
+
+    function startMode(mode, isResume) {
+      closeStartModal();
+      currentMode = mode;
+      const data = gameData[mode];
+
+      if (!isResume || !data.initialized) {
+        const sourceData = mode === 'add' ? addCards : subCards;
+        let shuffled = shuffle(sourceData);
+        if (selectedLimit > 0 && selectedLimit < shuffled.length) {
+          shuffled = shuffled.slice(0, selectedLimit);
+        }
+        data.list = shuffled;
+        data.index = 0;
+        data.initialized = true;
+        saveData();
+      }
+
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('play-screen').classList.remove('hidden');
+
+      const badge = document.getElementById('mode-badge');
+      if (mode === 'add') {
+        badge.innerText = 'たしざん';
+        badge.className = 'mode-title-badge badge-add';
+      } else {
+        badge.innerText = 'ひきざん';
+        badge.className = 'mode-title-badge badge-sub';
+      }
+
+      showQuestion();
+    }
+
+    function showQuestion() {
+      isWaitingNext = false;
+      isHintShowing = false;
+      document.getElementById('hint-box').classList.add('hidden');
+      document.getElementById('stamp').classList.remove('show');
+      clearInput();
+      
+      const data = gameData[currentMode];
+      
+      if (data.index >= data.list.length) {
+        // 全問達成時の特別な演出
+        document.getElementById('card-label').innerText = "かんりょう！";
+        document.getElementById('hint').style.display = "none";
+        document.getElementById('formula').innerText = "おしまい！";
+        document.getElementById('result-text').className = "result-text correct";
+        document.getElementById('result-text').innerText = "ぜんぶできたね！すごい！";
+        document.getElementById('progress-bar').style.width = "100%";
+        document.getElementById('progress').innerText = "ぜんぶクリア！";
+
+        document.getElementById('stamp').classList.add('show');
+        playSound('fanfare');
+
+        // 紙ふぶき演出
+        if (typeof confetti === 'function') {
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }
+        
+        data.initialized = false;
+        data.index = 0;
+        saveData();
+        return;
+      }
+
+      const item = data.list[data.index];
+      document.getElementById('card-label').innerText = "おもて（しき）";
+      document.getElementById('hint').style.display = "block";
+      document.getElementById('card').style.background = "white";
+      document.getElementById('card').style.borderColor = "#e1f5fe";
+      document.getElementById('formula').innerText = `${item.a} ${item.op} ${item.b}`;
+      document.getElementById('result-text').innerText = "";
+      
+      const total = data.list.length;
+      const current = data.index + 1;
+      document.getElementById('progress').innerText = `だい ${current} もん / ぜんぶで ${total} もん`;
+      document.getElementById('progress-bar').style.width = `${((current - 1) / total) * 100}%`;
+
+      setupHint(item);
+    }
+
+    // ヒント（ドット＆考え方）の作成
+    function setupHint(item) {
+      const hintText = document.getElementById('hint-text');
+      const dotGroup = document.getElementById('dot-group');
+      dotGroup.innerHTML = '';
+
+      if (item.op === '+') {
+        hintText.innerText = `${item.a} に ${item.b} を あわせるよ`;
+        // 赤ドット（item.a）
+        for (let i = 0; i < item.a; i++) {
+          const d = document.createElement('div');
+          d.className = 'dot';
+          dotGroup.appendChild(d);
+        }
+        // 青ドット（item.b）
+        for (let i = 0; i < item.b; i++) {
+          const d = document.createElement('div');
+          d.className = 'dot group2';
+          dotGroup.appendChild(d);
+        }
+      } else {
+        hintText.innerText = `${item.a} から ${item.b} を のこすよ`;
+        for (let i = 0; i < item.a; i++) {
+          const d = document.createElement('div');
+          d.className = 'dot';
+          if (i >= item.a - item.b) {
+            d.style.opacity = '0.2'; // ひく分は薄くする
+          }
+          dotGroup.appendChild(d);
+        }
+      }
+    }
+
+    function toggleHint() {
+      isHintShowing = !isHintShowing;
+      const box = document.getElementById('hint-box');
+      if (isHintShowing) {
+        box.classList.remove('hidden');
+      } else {
+        box.classList.add('hidden');
+      }
+    }
+
+    function pressNum(num) {
+      if (isWaitingNext) return;
+      const input = document.getElementById('ans-input');
+      if (input.value.length < 2) {
+        input.value += num;
+      }
+    }
+
+    function clearInput() {
+      document.getElementById('ans-input').value = "";
+    }
+
+    function checkAnswer() {
+      if (isWaitingNext) return;
+      
+      const inputVal = document.getElementById('ans-input').value;
+      if (inputVal === "") return;
+
+      const data = gameData[currentMode];
+      const item = data.list[data.index];
+      const userAns = parseInt(inputVal, 10);
+
+      if (userAns === item.ans) {
+        isWaitingNext = true;
+        playSound('correct');
+
+        document.getElementById('card-label').innerText = "うら（こたえ）";
+        document.getElementById('card').style.background = "#e8f5e9";
+        document.getElementById('card').style.borderColor = "#a5d6a7";
+        document.getElementById('hint-box').classList.add('hidden');
+        
+        document.getElementById('formula').innerText = `${item.a} ${item.op} ${item.b} = ${item.ans}`;
+        document.getElementById('result-text').className = "result-text correct";
+        document.getElementById('result-text').innerText = "〇 せいかい！";
+
+        // 1.8秒後に次へ
+        setTimeout(() => {
+          data.index++;
+          saveData();
+          showQuestion();
+        }, 1800);
+
+      } else {
+        playSound('wrong');
+        document.getElementById('result-text').className = "result-text wrong";
+        document.getElementById('result-text').innerText = "✕ もう一かい！";
+        
+        // 間違えたらヒントを自動表示
+        if (!isHintShowing) {
+          toggleHint();
+        }
+        clearInput();
+      }
+    }
+
+    function askReturnHome() {
+      const data = gameData[currentMode];
+      if (data.index === 0 || data.index >= data.list.length) {
+        confirmReturnHome();
+      } else {
+        document.getElementById('confirm-modal').classList.remove('hidden');
+      }
+    }
+
+    function closeConfirmModal() {
+      document.getElementById('confirm-modal').classList.add('hidden');
+    }
+
+    function confirmReturnHome() {
+      closeConfirmModal();
+      document.getElementById('play-screen').classList.add('hidden');
+      document.getElementById('start-screen').classList.remove('hidden');
+      updateResumeBadges();
+    }
+
+    function updateResumeBadges() {
+      const addData = gameData.add;
+      const addBadge = document.getElementById('add-resume-badge');
+      if (addData.initialized && addData.index > 0 && addData.index < addData.list.length) {
+        addBadge.classList.remove('hidden');
+      } else {
+        addBadge.classList.add('hidden');
+      }
+
+      const subData = gameData.sub;
+      const subBadge = document.getElementById('sub-resume-badge');
+      if (subData.initialized && subData.index > 0 && subData.index < subData.list.length) {
+        subBadge.classList.remove('hidden');
+      } else {
+        subBadge.classList.add('hidden');
+      }
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (document.getElementById('play-screen').classList.contains('hidden')) return;
+
+      if (e.key >= '0' && e.key <= '9') {
+        pressNum(parseInt(e.key, 10));
+      } else if (e.key === 'Enter') {
+        checkAnswer();
+      } else if (e.key === 'Backspace' || e.key === 'Delete') {
+        clearInput();
+      }
+    });
+
+    loadSavedData();
+  </script>
+</body>
+</html>
+
       padding: 16px 20px;
       font-size: 20px;
       font-weight: bold;
