@@ -4,8 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>けいさんカード 音読れんしゅう</title>
-  <!-- 紙ふぶき用ライブラリ -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
   <style>
     * {
       box-sizing: border-box;
@@ -52,13 +50,13 @@
     .start-title {
       font-size: 26px;
       color: #2c3e50;
-      margin: 20px 0 8px;
+      margin: 24px 0 8px;
     }
 
     .start-subtitle {
       font-size: 15px;
       color: #666;
-      margin-bottom: 28px;
+      margin-bottom: 32px;
     }
 
     .menu-buttons {
@@ -78,7 +76,7 @@
       color: white;
       cursor: pointer;
       box-shadow: 0 4px 10px rgba(0,0,0,0.15);
-      transition: all 0.1s ease;
+      transition: transform 0.1s ease;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -159,6 +157,7 @@
     .card-container {
       width: 100%;
       margin-bottom: 12px;
+      position: relative;
     }
     
     .card {
@@ -210,7 +209,7 @@
       margin-top: 2px;
     }
 
-    /* ヒント表示エリア（ドット） */
+    /* ヒント表示エリア */
     .hint-box {
       margin-top: 6px;
       padding: 6px 12px;
@@ -305,7 +304,7 @@
       color: #333;
       cursor: pointer;
       box-shadow: 0 3px 0 #bdbdbd;
-      transition: all 0.1s ease;
+      transition: transform 0.1s ease;
       touch-action: manipulation;
     }
     
@@ -370,6 +369,32 @@
 
     .stamp-text-top { font-size: 11px; font-weight: bold; }
     .stamp-text-main { font-size: 16px; font-weight: bold; margin: 2px 0; }
+
+    /* 自作紙ふぶきコンテナ */
+    #confetti-box {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 99;
+      overflow: hidden;
+    }
+
+    .confetti-piece {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      top: -20px;
+      animation: fall 2.5s linear infinite;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(105vh) rotate(720deg);
+      }
+    }
 
     /* モーダル */
     .modal-overlay {
@@ -439,7 +464,7 @@
           <span id="add-resume-badge" class="resume-badge hidden">つづきあり</span>
         </button>
         <button class="mode-select-btn btn-sub" onclick="handleModeClick('sub')">
-          <span>－ ひきざん (45もん)</span>
+          <span>－ ひきざん (54もん)</span>
           <span id="sub-resume-badge" class="resume-badge hidden">つづきあり</span>
         </button>
       </div>
@@ -510,6 +535,9 @@
 
   </div>
 
+  <!-- 紙ふぶきレイヤー -->
+  <div id="confetti-box"></div>
+
   <!-- つづきから遊ぶか選択するモーダル -->
   <div id="start-modal" class="modal-overlay hidden">
     <div class="modal-content">
@@ -536,7 +564,7 @@
   </div>
 
   <script>
-    // 効果音再生用の簡単なWeb Audio実装（エラー回避）
+    // 安全な音声再生処理
     let audioCtx = null;
     function playAudioTone(type) {
       try {
@@ -572,8 +600,29 @@
           osc.stop(now + 0.25);
         }
       } catch (e) {
-        // 音声不具合時も動作を止めない
+        // エラー無視
       }
+    }
+
+    // 自作紙ふぶきエフェクト
+    function launchConfetti() {
+      const box = document.getElementById('confetti-box');
+      box.innerHTML = '';
+      const colors = ['#f44336', '#e91e63', '#9c27b0', '#2196f3', '#4caf50', '#ffeb3b', '#ff9800'];
+      
+      for (let i = 0; i < 40; i++) {
+        const p = document.createElement('div');
+        p.className = 'confetti-piece';
+        p.style.left = Math.random() * 100 + '%';
+        p.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+        p.style.animationDelay = Math.random() * 2 + 's';
+        p.style.animationDuration = (Math.random() * 1.5 + 1.5) + 's';
+        box.appendChild(p);
+      }
+
+      setTimeout(() => {
+        box.innerHTML = '';
+      }, 5000);
     }
 
     // 基本問題リスト生成
@@ -689,14 +738,7 @@
 
         document.getElementById('stamp').classList.add('show');
         playAudioTone('correct');
-
-        if (typeof confetti === 'function') {
-          confetti({
-            particleCount: 100,
-            spread: 70,
-            origin: { y: 0.6 }
-          });
-        }
+        launchConfetti();
         
         data.initialized = false;
         data.index = 0;
@@ -708,29 +750,4 @@
       document.getElementById('card-label').innerText = "おもて（しき）";
       document.getElementById('hint').style.display = "block";
       document.getElementById('card').style.background = "white";
-      document.getElementById('card').style.borderColor = "#e1f5fe";
-      document.getElementById('formula').innerText = `${item.a} ${item.op} ${item.b}`;
-      document.getElementById('result-text').innerText = "";
-      
-      const total = data.list.length;
-      const current = data.index + 1;
-      document.getElementById('progress').innerText = `だい ${current} もん / ぜんぶで ${total} もん`;
-      document.getElementById('progress-bar').style.width = `${((current - 1) / total) * 100}%`;
-
-      setupHint(item);
-    }
-
-    function setupHint(item) {
-      const hintText = document.getElementById('hint-text');
-      const dotGroup = document.getElementById('dot-group');
-      dotGroup.innerHTML = '';
-
-      if (item.op === '+') {
-        hintText.innerText = `${item.a} に ${item.b} を あわせるよ`;
-        for (let i = 0; i < item.a; i++) {
-          const d = document.createElement('div');
-          d.className = 'dot';
-          dotGroup.appendChild(d);
-        }
-        for (let i = 0; i < item.b; i++) {
-          const 
+      document.getElementById('card'
