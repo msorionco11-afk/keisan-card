@@ -18,7 +18,7 @@
     body {
       font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
       text-align: center;
-      padding: 12px 10px;
+      padding: 16px 12px;
       background: #f0f8ff;
       color: #333;
       display: flex;
@@ -50,61 +50,28 @@
 
     /* スタート画面 */
     .start-title {
-      font-size: 24px;
+      font-size: 26px;
       color: #2c3e50;
-      margin: 10px 0 5px;
+      margin: 20px 0 8px;
     }
 
     .start-subtitle {
-      font-size: 14px;
+      font-size: 15px;
       color: #666;
-      margin-bottom: 15px;
-    }
-
-    .section-label {
-      font-size: 14px;
-      font-weight: bold;
-      color: #444;
-      margin-bottom: 8px;
-    }
-
-    .count-selector {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 20px;
-      width: 100%;
-      max-width: 290px;
-    }
-
-    .count-btn {
-      flex: 1;
-      padding: 8px 0;
-      font-size: 14px;
-      font-weight: bold;
-      border: 2px solid #b3e5fc;
-      border-radius: 12px;
-      background: white;
-      color: #0277bd;
-      cursor: pointer;
-    }
-
-    .count-btn.active {
-      background: #0288d1;
-      color: white;
-      border-color: #0288d1;
+      margin-bottom: 28px;
     }
 
     .menu-buttons {
       display: flex;
       flex-direction: column;
-      gap: 14px;
+      gap: 16px;
       width: 100%;
       max-width: 290px;
     }
 
     .mode-select-btn {
-      padding: 16px 20px;
-      font-size: 20px;
+      padding: 18px 20px;
+      font-size: 21px;
       font-weight: bold;
       border: none;
       border-radius: 20px;
@@ -116,6 +83,7 @@
       align-items: center;
       justify-content: center;
       gap: 10px;
+      touch-action: manipulation;
     }
 
     .mode-select-btn:active {
@@ -126,9 +94,9 @@
     .btn-sub { background: #2196f3; }
 
     .resume-badge {
-      font-size: 11px;
+      font-size: 12px;
       background: rgba(255,255,255,0.3);
-      padding: 2px 6px;
+      padding: 2px 8px;
       border-radius: 8px;
     }
 
@@ -150,6 +118,7 @@
       border: none;
       border-radius: 12px;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     .mode-title-badge {
@@ -241,7 +210,7 @@
       margin-top: 2px;
     }
 
-    /* ヒント表示エリア（ドット visual） */
+    /* ヒント表示エリア（ドット） */
     .hint-box {
       margin-top: 6px;
       padding: 6px 12px;
@@ -315,6 +284,7 @@
       border: 2px solid #ffe082;
       border-radius: 12px;
       cursor: pointer;
+      touch-action: manipulation;
     }
     
     .tenkey {
@@ -369,7 +339,7 @@
       box-shadow: none;
     }
 
-    /* スタンプ・演出 */
+    /* スタンプ */
     .stamp-container {
       position: absolute;
       top: 50%;
@@ -446,6 +416,7 @@
       border-radius: 12px;
       border: none;
       cursor: pointer;
+      touch-action: manipulation;
     }
 
     .modal-btn-resume { background: #4caf50; color: white; }
@@ -460,22 +431,15 @@
     <!-- 1. モード選択（スタート画面） -->
     <div id="start-screen" class="screen">
       <h1 class="start-title">けいさんカード</h1>
-      <p class="start-subtitle">楽しくおんどく＆けいさん！</p>
-
-      <div class="section-label">なんもん れんしゅうする？</div>
-      <div class="count-selector">
-        <button class="count-btn" onclick="selectQuestionLimit(10)">10もん</button>
-        <button class="count-btn active" onclick="selectQuestionLimit(20)">20もん</button>
-        <button class="count-btn" onclick="selectQuestionLimit(0)">ぜんぶ</button>
-      </div>
+      <p class="start-subtitle">れんしゅうするほうを えらんでね！</p>
 
       <div class="menu-buttons">
         <button class="mode-select-btn btn-add" onclick="handleModeClick('add')">
-          <span>＋ たしざん</span>
+          <span>＋ たしざん (45もん)</span>
           <span id="add-resume-badge" class="resume-badge hidden">つづきあり</span>
         </button>
         <button class="mode-select-btn btn-sub" onclick="handleModeClick('sub')">
-          <span>－ ひきざん</span>
+          <span>－ ひきざん (54もん)</span>
           <span id="sub-resume-badge" class="resume-badge hidden">つづきあり</span>
         </button>
       </div>
@@ -500,7 +464,7 @@
           <div class="read-aloud-hint" id="hint">こえにだしながらやってみよう！</div>
           <div class="formula" id="formula">1 + 1</div>
           
-          <!-- さくらんぼ・ドットヒント -->
+          <!-- ドットヒント -->
           <div id="hint-box" class="hint-box hidden">
             <div id="hint-text"></div>
             <div class="dot-group" id="dot-group"></div>
@@ -572,57 +536,43 @@
   </div>
 
   <script>
-    // サウンド効果（Web Audio APIで生成）
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    // 効果音再生用の簡単なWeb Audio実装（エラー回避）
     let audioCtx = null;
+    function playAudioTone(type) {
+      try {
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) audioCtx = new AudioContextClass();
+        }
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        if (!audioCtx) return;
 
-    function initAudio() {
-      if (!audioCtx) {
-        audioCtx = new AudioContext();
-      }
-    }
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
 
-    function playSound(type) {
-      if (!audioCtx) return;
-      
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-
-      const now = audioCtx.currentTime;
-
-      if (type === 'correct') {
-        // ピンポン♪
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, now); // C5
-        osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
-        osc.start(now);
-        osc.stop(now + 0.4);
-      } else if (type === 'wrong') {
-        // ブブー
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(150, now);
-        gain.gain.setValueAtTime(0.2, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
-        osc.start(now);
-        osc.stop(now + 0.3);
-      } else if (type === 'fanfare') {
-        // ファンファーレ
-        const notes = [523.25, 659.25, 783.99, 1046.50]; // C, E, G, C
-        notes.forEach((freq, idx) => {
-          const o = audioCtx.createOscillator();
-          const g = audioCtx.createGain();
-          o.connect(g);
-          g.connect(audioCtx.destination);
-          o.frequency.value = freq;
-          g.gain.setValueAtTime(0.2, now + idx * 0.1);
-          g.gain.exponentialRampToValueAtTime(0.01, now + idx * 0.1 + 0.3);
-          o.start(now + idx * 0.1);
-          o.stop(now + idx * 0.1 + 0.3);
-        });
+        if (type === 'correct') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.1);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } else if (type === 'wrong') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(160, now);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        }
+      } catch (e) {
+        // 音声不具合時も動作を止めない
       }
     }
 
@@ -641,8 +591,6 @@
       }
     }
 
-    let selectedLimit = 20; // デフォルト20問コース
-
     const gameData = {
       add: { list: [], index: 0, initialized: false },
       sub: { list: [], index: 0, initialized: false }
@@ -655,13 +603,6 @@
 
     function shuffle(array) {
       return [...array].sort(() => Math.random() - 0.5);
-    }
-
-    function selectQuestionLimit(limit) {
-      selectedLimit = limit;
-      const btns = document.querySelectorAll('.count-btn');
-      btns.forEach(btn => btn.classList.remove('active'));
-      event.target.classList.add('active');
     }
 
     function loadSavedData() {
@@ -684,7 +625,6 @@
     }
 
     function handleModeClick(mode) {
-      initAudio();
       selectedModeChoice = mode;
       const data = gameData[mode];
 
@@ -708,11 +648,7 @@
 
       if (!isResume || !data.initialized) {
         const sourceData = mode === 'add' ? addCards : subCards;
-        let shuffled = shuffle(sourceData);
-        if (selectedLimit > 0 && selectedLimit < shuffled.length) {
-          shuffled = shuffled.slice(0, selectedLimit);
-        }
-        data.list = shuffled;
+        data.list = shuffle(sourceData);
         data.index = 0;
         data.initialized = true;
         saveData();
@@ -743,11 +679,58 @@
       const data = gameData[currentMode];
       
       if (data.index >= data.list.length) {
-        // 全問達成時の特別な演出
         document.getElementById('card-label').innerText = "かんりょう！";
         document.getElementById('hint').style.display = "none";
         document.getElementById('formula').innerText = "おしまい！";
         document.getElementById('result-text').className = "result-text correct";
         document.getElementById('result-text').innerText = "ぜんぶできたね！すごい！";
         document.getElementById('progress-bar').style.width = "100%";
-     
+        document.getElementById('progress').innerText = "ぜんぶクリア！";
+
+        document.getElementById('stamp').classList.add('show');
+        playAudioTone('correct');
+
+        if (typeof confetti === 'function') {
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 }
+          });
+        }
+        
+        data.initialized = false;
+        data.index = 0;
+        saveData();
+        return;
+      }
+
+      const item = data.list[data.index];
+      document.getElementById('card-label').innerText = "おもて（しき）";
+      document.getElementById('hint').style.display = "block";
+      document.getElementById('card').style.background = "white";
+      document.getElementById('card').style.borderColor = "#e1f5fe";
+      document.getElementById('formula').innerText = `${item.a} ${item.op} ${item.b}`;
+      document.getElementById('result-text').innerText = "";
+      
+      const total = data.list.length;
+      const current = data.index + 1;
+      document.getElementById('progress').innerText = `だい ${current} もん / ぜんぶで ${total} もん`;
+      document.getElementById('progress-bar').style.width = `${((current - 1) / total) * 100}%`;
+
+      setupHint(item);
+    }
+
+    function setupHint(item) {
+      const hintText = document.getElementById('hint-text');
+      const dotGroup = document.getElementById('dot-group');
+      dotGroup.innerHTML = '';
+
+      if (item.op === '+') {
+        hintText.innerText = `${item.a} に ${item.b} を あわせるよ`;
+        for (let i = 0; i < item.a; i++) {
+          const d = document.createElement('div');
+          d.className = 'dot';
+          dotGroup.appendChild(d);
+        }
+        for (let i = 0; i < item.b; i++) {
+          const 
