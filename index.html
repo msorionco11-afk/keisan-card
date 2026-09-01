@@ -50,13 +50,41 @@
     .start-title {
       font-size: 26px;
       color: #2c3e50;
-      margin: 24px 0 8px;
+      margin: 20px 0 6px;
     }
 
     .start-subtitle {
       font-size: 15px;
       color: #666;
-      margin-bottom: 32px;
+      margin-bottom: 24px;
+    }
+
+    /* 自己ベスト表示エリア */
+    .best-scores {
+      width: 100%;
+      max-width: 290px;
+      background: white;
+      border-radius: 16px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+      border: 2px solid #e1f5fe;
+    }
+
+    .best-score-title {
+      font-size: 13px;
+      color: #0277bd;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .best-score-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 14px;
+      font-weight: bold;
+      color: #444;
+      margin: 4px 0;
     }
 
     .menu-buttons {
@@ -119,16 +147,33 @@
       touch-action: manipulation;
     }
 
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
     .mode-title-badge {
-      font-size: 15px;
+      font-size: 14px;
       font-weight: bold;
-      padding: 4px 12px;
+      padding: 4px 10px;
       border-radius: 12px;
       color: white;
     }
 
     .badge-add { background: #ff9800; }
     .badge-sub { background: #2196f3; }
+
+    /* タイマー表示 */
+    .timer-badge {
+      font-size: 15px;
+      font-weight: bold;
+      background: #37474f;
+      color: #ffe082;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-family: monospace;
+    }
 
     .progress-bar-container {
       width: 100%;
@@ -207,6 +252,26 @@
       font-weight: bold;
       min-height: 26px;
       margin-top: 2px;
+    }
+
+    /* クリア完了画面 */
+    .clear-time-text {
+      font-size: 22px;
+      color: #e91e63;
+      font-weight: bold;
+      margin: 6px 0;
+    }
+
+    .new-record-tag {
+      font-size: 14px;
+      color: #ff9800;
+      font-weight: bold;
+      background: #fff8e1;
+      padding: 4px 12px;
+      border-radius: 10px;
+      display: inline-block;
+      margin-top: 4px;
+      border: 1px solid #ffe082;
     }
 
     /* ヒント表示エリア */
@@ -458,6 +523,19 @@
       <h1 class="start-title">けいさんカード</h1>
       <p class="start-subtitle">れんしゅうするほうを えらんでね！</p>
 
+      <!-- 自己ベスト記録表示 -->
+      <div class="best-scores">
+        <div class="best-score-title">🏆 さいこうきろく（ベストタイム）</div>
+        <div class="best-score-item">
+          <span>たしざん (45もん):</span>
+          <span id="best-add-text">ー</span>
+        </div>
+        <div class="best-score-item">
+          <span>ひきざん (45もん):</span>
+          <span id="best-sub-text">ー</span>
+        </div>
+      </div>
+
       <div class="menu-buttons">
         <button class="mode-select-btn btn-add" id="btn-mode-add">
           <span>＋ たしざん (45もん)</span>
@@ -474,7 +552,10 @@
     <div id="play-screen" class="screen hidden">
       <div class="play-header">
         <button class="back-btn" id="btn-back">← えらびなおす</button>
-        <div id="mode-badge" class="mode-title-badge badge-add">たしざん</div>
+        <div class="header-right">
+          <div id="timer-display" class="timer-badge">00:00</div>
+          <div id="mode-badge" class="mode-title-badge badge-add">たしざん</div>
+        </div>
       </div>
 
       <div class="progress-bar-container">
@@ -564,7 +645,98 @@
   </div>
 
   <script>
-    // 基本問題データ
+    // 拍手＆かんせい＆ピンポンサウンド処理（Web Audio自作）
+    let audioCtx = null;
+
+    function initAudio() {
+      if (!audioCtx) {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (AudioContextClass) audioCtx = new AudioContextClass();
+      }
+      if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    }
+
+    function playAudioTone(type) {
+      try {
+        initAudio();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'correct') {
+          // ピンポン♪
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.1);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+          osc.start(now);
+          osc.stop(now + 0.35);
+
+        } else if (type === 'wrong') {
+          // ブブー
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(160, now);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+
+        } else if (type === 'cheer') {
+          playCheerAndApplause();
+        }
+      } catch (e) {}
+    }
+
+    // 拍手と歓声の合成（パチパチ音＋ファンファーレ）
+    function playCheerAndApplause() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+
+      // 1. 拍手音
+      for (let i = 0; i < 60; i++) {
+        const timeOffset = Math.random() * 2.2;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = 800 + Math.random() * 1200;
+        gain.gain.setValueAtTime(0.08, now + timeOffset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + timeOffset + 0.05);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now + timeOffset);
+        osc.stop(now + timeOffset + 0.05);
+      }
+
+      // 2. 歓声・メロディ
+      const notes = [523.25, 659.25, 783.99, 1046.50];
+      notes.forEach((freq, idx) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const startTime = now + idx * 0.12;
+        gain.gain.setValueAtTime(0.2, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.8);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.8);
+      });
+    }
+
+    // 基本問題データ生成
+    // たしざん：和が10以下の45問
     const addCards = [];
     for (let a = 1; a <= 9; a++) {
       for (let b = 1; b <= 10 - a; b++) {
@@ -572,22 +744,66 @@
       }
     }
 
+    // ひきざん：10以下の引き算（答えが1以上）の45問
+    // a = 2..10 に対して, b は 1..(a-1) ※ただし 10 以下の引き算45問セットに厳密調整
     const subCards = [];
     for (let a = 2; a <= 10; a++) {
-      for (let b = 1; b < a; b++) {
+      // 全45問になるよう、配られる一般的なカード（被減数2〜10、引く数1〜9で答えが1〜9になる45パターン）
+      for (let b = 1; b <= a - 1; b++) {
         subCards.push({ a: a, b: b, op: '-', ans: a - b });
       }
     }
 
     const gameData = {
-      add: { list: [], index: 0, initialized: false },
-      sub: { list: [], index: 0, initialized: false }
+      add: { list: [], index: 0, initialized: false, elapsedTime: 0 },
+      sub: { list: [], index: 0, initialized: false, elapsedTime: 0 }
+    };
+
+    const bestScores = {
+      add: null,
+      sub: null
     };
 
     let currentMode = 'add';
     let selectedModeChoice = 'add';
     let isWaitingNext = false;
     let isHintShowing = false;
+
+    // タイマー変数
+    let timerInterval = null;
+    let startTime = 0;
+
+    function formatTime(seconds) {
+      if (seconds === null || seconds === undefined) return "ー";
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m}ふん${s < 10 ? '0' : ''}${s}びょう`;
+    }
+
+    function formatDigitalTime(seconds) {
+      const m = Math.floor(seconds / 60);
+      const s = seconds % 60;
+      return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+    }
+
+    function startTimer() {
+      stopTimer();
+      const data = gameData[currentMode];
+      startTime = Date.now() - (data.elapsedTime * 1000);
+      
+      timerInterval = setInterval(() => {
+        const now = Date.now();
+        data.elapsedTime = Math.floor((now - startTime) / 1000);
+        document.getElementById('timer-display').innerText = formatDigitalTime(data.elapsedTime);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+      }
+    }
 
     function shuffle(array) {
       return [...array].sort(() => Math.random() - 0.5);
@@ -598,21 +814,37 @@
         const saved = localStorage.getItem('keisan_card_save');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed.add && parsed.add.list && parsed.add.list.length > 0) gameData.add = parsed.add;
-          if (parsed.sub && parsed.sub.list && parsed.sub.list.length > 0) gameData.sub = parsed.sub;
+          if (parsed.add && parsed.add.list) gameData.add = parsed.add;
+          if (parsed.sub && parsed.sub.list) gameData.sub = parsed.sub;
+        }
+
+        const savedScores = localStorage.getItem('keisan_card_best');
+        if (savedScores) {
+          const parsedScores = JSON.parse(savedScores);
+          if (parsedScores.add !== undefined) bestScores.add = parsedScores.add;
+          if (parsedScores.sub !== undefined) bestScores.sub = parsedScores.sub;
         }
       } catch (e) {}
       updateResumeBadges();
+      updateBestScoreDisplay();
     }
 
     function saveData() {
       try {
         localStorage.setItem('keisan_card_save', JSON.stringify(gameData));
+        localStorage.setItem('keisan_card_best', JSON.stringify(bestScores));
       } catch (e) {}
       updateResumeBadges();
+      updateBestScoreDisplay();
+    }
+
+    function updateBestScoreDisplay() {
+      document.getElementById('best-add-text').innerText = formatTime(bestScores.add);
+      document.getElementById('best-sub-text').innerText = formatTime(bestScores.sub);
     }
 
     function handleModeClick(mode) {
+      initAudio();
       selectedModeChoice = mode;
       const data = gameData[mode];
 
@@ -634,6 +866,7 @@
         const sourceData = mode === 'add' ? addCards : subCards;
         data.list = shuffle(sourceData);
         data.index = 0;
+        data.elapsedTime = 0;
         data.initialized = true;
         saveData();
       }
@@ -650,6 +883,8 @@
         badge.className = 'mode-title-badge badge-sub';
       }
 
+      document.getElementById('timer-display').innerText = formatDigitalTime(data.elapsedTime);
+      startTimer();
       showQuestion();
     }
 
@@ -663,19 +898,37 @@
       const data = gameData[currentMode];
       
       if (data.index >= data.list.length) {
+        // クリア時
+        stopTimer();
+        const finalTime = data.elapsedTime;
+        
+        let isNewRecord = false;
+        if (bestScores[currentMode] === null || finalTime < bestScores[currentMode]) {
+          bestScores[currentMode] = finalTime;
+          isNewRecord = true;
+        }
+
         document.getElementById('card-label').innerText = "かんりょう！";
         document.getElementById('hint').style.display = "none";
         document.getElementById('formula').innerText = "おしまい！";
+        
+        let resultHTML = `<div class="clear-time-text">⏱️ タイム: ${formatTime(finalTime)}</div>`;
+        if (isNewRecord) {
+          resultHTML += `<div class="new-record-tag">🎉 さいこうきろく こうしん！</div>`;
+        }
         document.getElementById('result-text').className = "result-text correct";
-        document.getElementById('result-text').innerText = "ぜんぶできたね！すごい！";
+        document.getElementById('result-text').innerHTML = resultHTML;
+        
         document.getElementById('progress-bar').style.width = "100%";
         document.getElementById('progress').innerText = "ぜんぶクリア！";
 
         document.getElementById('stamp').classList.add('show');
+        playAudioTone('cheer');
         launchConfetti();
         
         data.initialized = false;
         data.index = 0;
+        data.elapsedTime = 0;
         saveData();
         return;
       }
@@ -714,7 +967,7 @@
           dotGroup.appendChild(d);
         }
       } else {
-        hintText.innerText = `${item.a} から ${item.b} を へらすよ`;
+        hintText.innerText = `${item.a} から ${item.b} を のこすよ`;
         for (let i = 0; i < item.a; i++) {
           const d = document.createElement('div');
           d.className = 'dot';
@@ -760,6 +1013,7 @@
 
       if (userAns === item.ans) {
         isWaitingNext = true;
+        playAudioTone('correct');
 
         document.getElementById('card-label').innerText = "うら（こたえ）";
         document.getElementById('card').style.background = "#e8f5e9";
@@ -777,6 +1031,7 @@
         }, 1800);
 
       } else {
+        playAudioTone('wrong');
         document.getElementById('result-text').className = "result-text wrong";
         document.getElementById('result-text').innerText = "✕ もう一かい！";
         
@@ -788,6 +1043,7 @@
     }
 
     function askReturnHome() {
+      stopTimer();
       const data = gameData[currentMode];
       if (data.index === 0 || data.index >= data.list.length) {
         confirmReturnHome();
@@ -797,10 +1053,12 @@
     }
 
     function confirmReturnHome() {
+      stopTimer();
       document.getElementById('confirm-modal').classList.add('hidden');
       document.getElementById('play-screen').classList.add('hidden');
       document.getElementById('start-screen').classList.remove('hidden');
       updateResumeBadges();
+      updateBestScoreDisplay();
     }
 
     function updateResumeBadges() {
@@ -837,7 +1095,7 @@
       setTimeout(() => { box.innerHTML = ''; }, 5000);
     }
 
-    // イベントリスナーの登録（直接HTML内に埋め込まず確実に接続）
+    // イベントリスナー
     document.getElementById('btn-mode-add').addEventListener('click', () => handleModeClick('add'));
     document.getElementById('btn-mode-sub').addEventListener('click', () => handleModeClick('sub'));
     document.getElementById('btn-back').addEventListener('click', askReturnHome);
@@ -849,7 +1107,10 @@
     document.getElementById('btn-modal-restart').addEventListener('click', () => startMode(selectedModeChoice, false));
     document.getElementById('btn-modal-cancel').addEventListener('click', () => document.getElementById('start-modal').classList.add('hidden'));
 
-    document.getElementById('btn-confirm-keep').addEventListener('click', () => document.getElementById('confirm-modal').classList.add('hidden'));
+    document.getElementById('btn-confirm-keep').addEventListener('click', () => {
+      document.getElementById('confirm-modal').classList.add('hidden');
+      startTimer();
+    });
     document.getElementById('btn-confirm-exit').addEventListener('click', confirmReturnHome);
 
     document.querySelectorAll('.num-btn[data-num]').forEach(btn => {
@@ -870,4 +1131,3 @@
   </script>
 </body>
 </html>
-
