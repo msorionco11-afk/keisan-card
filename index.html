@@ -645,7 +645,7 @@
   </div>
 
   <script>
-    // 拍手＆かんせい＆ピンポンサウンド処理（Web Audio自作）
+    // サウンド処理（Web Audio自作）
     let audioCtx = null;
 
     function initAudio() {
@@ -693,32 +693,35 @@
           osc.stop(now + 0.25);
 
         } else if (type === 'cheer') {
+          // 通常クリア：拍手と歓声
           playCheerAndApplause();
+
+        } else if (type === 'fanfare') {
+          // 新記録更新：お祝いファンファーレ！
+          playFanfare();
         }
       } catch (e) {}
     }
 
-    // 拍手と歓声の合成（パチパチ音＋ファンファーレ）
+    // 拍手と歓声の合成（通常クリア用）
     function playCheerAndApplause() {
       if (!audioCtx) return;
       const now = audioCtx.currentTime;
 
-      // 1. 拍手音
-      for (let i = 0; i < 60; i++) {
-        const timeOffset = Math.random() * 2.2;
+      for (let i = 0; i < 50; i++) {
+        const timeOffset = Math.random() * 2.0;
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
         osc.type = 'triangle';
         osc.frequency.value = 800 + Math.random() * 1200;
-        gain.gain.setValueAtTime(0.08, now + timeOffset);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + timeOffset + 0.05);
+        gain.gain.setValueAtTime(0.06, now + timeOffset);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + timeOffset + 0.04);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start(now + timeOffset);
-        osc.stop(now + timeOffset + 0.05);
+        osc.stop(now + timeOffset + 0.04);
       }
 
-      // 2. 歓声・メロディ
       const notes = [523.25, 659.25, 783.99, 1046.50];
       notes.forEach((freq, idx) => {
         const osc = audioCtx.createOscillator();
@@ -726,17 +729,50 @@
         osc.type = 'sine';
         osc.frequency.value = freq;
         const startTime = now + idx * 0.12;
-        gain.gain.setValueAtTime(0.2, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.8);
+        gain.gain.setValueAtTime(0.15, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, startTime + 0.6);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start(startTime);
-        osc.stop(startTime + 0.8);
+        osc.stop(startTime + 0.6);
+      });
+    }
+
+    // 新記録ファンファーレ（豪華なお祝いメロディ）
+    function playFanfare() {
+      if (!audioCtx) return;
+      const now = audioCtx.currentTime;
+
+      // ソ・ド・ミ・ソ・高いド！のファンファーレ
+      const melody = [
+        { freq: 392.00, start: 0.0, dur: 0.15 }, // G4
+        { freq: 523.25, start: 0.15, dur: 0.15 },// C5
+        { freq: 659.25, start: 0.3, dur: 0.15 }, // E5
+        { freq: 783.99, start: 0.45, dur: 0.2 }, // G5
+        { freq: 659.25, start: 0.65, dur: 0.15 },// E5
+        { freq: 783.99, start: 0.8, dur: 0.5 },  // G5 (ロング)
+        { freq: 1046.50, start: 1.3, dur: 0.8 }  // C6 (大フィナーレ)
+      ];
+
+      melody.forEach(note => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.value = note.freq;
+        const startTime = now + note.start;
+        const stopTime = startTime + note.dur;
+        
+        gain.gain.setValueAtTime(0.25, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.01, stopTime);
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(stopTime);
       });
     }
 
     // 基本問題データ生成
-    // たしざん：和が10以下の45問
     const addCards = [];
     for (let a = 1; a <= 9; a++) {
       for (let b = 1; b <= 10 - a; b++) {
@@ -744,11 +780,8 @@
       }
     }
 
-    // ひきざん：10以下の引き算（答えが1以上）の45問
-    // a = 2..10 に対して, b は 1..(a-1) ※ただし 10 以下の引き算45問セットに厳密調整
     const subCards = [];
     for (let a = 2; a <= 10; a++) {
-      // 全45問になるよう、配られる一般的なカード（被減数2〜10、引く数1〜9で答えが1〜9になる45パターン）
       for (let b = 1; b <= a - 1; b++) {
         subCards.push({ a: a, b: b, op: '-', ans: a - b });
       }
@@ -923,7 +956,14 @@
         document.getElementById('progress').innerText = "ぜんぶクリア！";
 
         document.getElementById('stamp').classList.add('show');
-        playAudioTone('cheer');
+        
+        // ★新記録ならファンファーレ、通常なら拍手と歓声
+        if (isNewRecord) {
+          playAudioTone('fanfare');
+        } else {
+          playAudioTone('cheer');
+        }
+
         launchConfetti();
         
         data.initialized = false;
